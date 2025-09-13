@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Environment detection as specified in PRD
-const isLocalDevelopment = 
-  window.location.protocol === 'http:' || 
+const isLocalDevelopment =
+  window.location.protocol === 'http:' ||
   window.location.hostname === 'localhost';
 
 const supabaseUrl = isLocalDevelopment
-  ? 'http://localhost:5173'  // Local Supabase Lite instance
+  ? 'http://localhost:5173'  // Local Supabase instance
   : window.location.origin;  // Production deployment
 
 // For local development, we'll use a placeholder key since Supabase Lite doesn't require real keys
@@ -14,6 +14,8 @@ const supabaseUrl = isLocalDevelopment
 const supabaseAnonKey = isLocalDevelopment
   ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE5NTYzNTUyMDB9'
   : (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+console.log("Supabase URL:", supabaseUrl);
+console.log("Supabase Anon Key:", supabaseAnonKey);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
