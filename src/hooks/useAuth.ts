@@ -2,6 +2,33 @@ import { useState, useEffect, useCallback, createContext, useContext } from 'rea
 import { supabase } from '@/lib/supabase'
 import type { User, Session, SignInCredentials, SignUpCredentials } from '@/types/auth'
 
+// Get supabase config
+const getSupabaseUrl = () => {
+  const isLocalDevelopment =
+    window.location.protocol === 'http:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  if (isLocalDevelopment) {
+    return 'http://localhost:5173';
+  }
+
+  const { protocol, hostname, port } = window.location;
+  const baseUrl = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+  return baseUrl;
+};
+
+const getSupabaseKey = () => {
+  const isLocalDevelopment =
+    window.location.protocol === 'http:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  return isLocalDevelopment
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE5NTYzNTUyMDB9'
+    : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByb2R1Y3Rpb24iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MDk5NTIwMCwiZXhwIjoxOTU2MzU1MjAwfQ.placeholder';
+};
+
 interface AuthContextType {
   user: User | null
   session: Session | null
@@ -30,14 +57,31 @@ export function useAuthProvider(): AuthContextType {
   const signIn = useCallback(async (credentials: SignInCredentials) => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password,
+      // Use direct API call with explicit grant_type parameter
+      const supabaseUrl = getSupabaseUrl()
+      const supabaseKey = getSupabaseKey()
+
+      const response = await fetch(`${supabaseUrl}/auth/v1/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+          grant_type: 'password'
+        }),
       })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error_description || 'Login failed')
+      }
 
-      if (data.user && data.session) {
+      const data = await response.json()
+
+      if (data.user && data.access_token) {
         const user: User = {
           id: data.user.id,
           email: data.user.email || '',
@@ -51,11 +95,11 @@ export function useAuthProvider(): AuthContextType {
         }
 
         const session: Session = {
-          access_token: data.session.access_token,
-          token_type: data.session.token_type,
-          expires_in: data.session.expires_in || 3600,
-          expires_at: data.session.expires_at || 0,
-          refresh_token: data.session.refresh_token,
+          access_token: data.access_token,
+          token_type: data.token_type || 'bearer',
+          expires_in: data.expires_in || 3600,
+          expires_at: data.expires_at || 0,
+          refresh_token: data.refresh_token,
           user,
         }
 
